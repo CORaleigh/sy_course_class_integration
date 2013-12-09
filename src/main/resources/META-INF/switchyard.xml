@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="ASCII"?>
+<sy:switchyard xmlns:bean="urn:switchyard-component-bean:config:1.1" xmlns:jpa="urn:switchyard-component-camel-jpa:config:1.1" xmlns:resteasy="urn:switchyard-component-resteasy:config:1.1" xmlns:sca="http://docs.oasis-open.org/ns/opencsa/sca/200912" xmlns:sql="urn:switchyard-component-camel-sql:config:1.1" xmlns:sy="urn:switchyard-config:switchyard:1.1" name="course-class-integration" targetNamespace="urn:gov.raleighnc.switchyard.integration:course-class-integration:1.0">
+  <sca:composite name="course-class-integration" targetNamespace="urn:gov.raleighnc.switchyard.integration:course-class-integration:1.0">
+    <sca:component name="CourseServiceBean">
+      <bean:implementation.bean class="gov.raleighnc.switchyard.integration.service.classdb.course.CourseServiceBean"/>
+      <sca:service name="CourseService">
+        <sca:interface.java interface="gov.raleighnc.switchyard.integration.service.classdb.course.CourseService"/>
+      </sca:service>
+      <sca:reference name="CourseCwRestInterface">
+        <sca:interface.java interface="gov.raleighnc.switchyard.integration.service.classdb.course.CourseCwRestInterface"/>
+      </sca:reference>
+      <sca:reference name="CourseCwJpaInterface">
+        <sca:interface.java interface="gov.raleighnc.switchyard.integration.service.classdb.course.CourseCwJpaInterface"/>
+      </sca:reference>
+      <sca:reference name="CourseCwSqlInterface">
+        <sca:interface.java interface="gov.raleighnc.switchyard.integration.service.classdb.course.CourseCwSqlInterface"/>
+      </sca:reference>
+      <sca:property value="Chad" name="supervisor"/>
+      <sca:property value="Charles" name="requestedBy"/>
+      <sca:property value="Jim" name="initiatedBy"/>
+      <sca:property value="02" name="priority"/>
+      <sca:property value="5" name="numDaysBefore"/>
+      <sca:property value="Course" name="woCategory"/>
+      <sca:property value="Mike" name="submitTo"/>
+      <sca:property value="OPEN" name="status"/>
+      <sca:property value="1" name="woTemplateId"/>
+    </sca:component>
+    <sca:service name="CourseService" promote="CourseServiceBean/CourseService">
+      <sca:interface.java interface="gov.raleighnc.switchyard.integration.service.classdb.course.CourseService"/>
+      <sql:binding.sql name="CoursePolling" initialDelay="30000" period="300s">
+        <sy:operationSelector operationName="createWorkOrder"/>
+        <sql:query>select mb.booking_id 'Maintenance Booking', b.start_date_time 'Maintenance Start', b.end_date_time 'Maintenance End', mb.related_booking_id 'Related Booking', mb.related_booking_type_id 'Related Booking Type', b.reference 'Related Booking Reference', c.barcode_number 'Course Barcode', a.title 'Activity Title', ISNULL(c.title, '') 'Course Title' from maint_booking as mb INNER JOIN course_booking as cb ON cb.booking_id = mb.related_booking_id INNER JOIN booking as b ON mb.booking_id = b.booking_id INNER JOIN course as c on c.course_id = b.reference INNER JOIN activity as a on a.activity_id = c.activity_id where b.facility_id in (select facility_id from facility where facility_type_id in (26, 39, 48)) and b.start_date_time > GETDATE()</sql:query>
+        <sql:dataSourceRef>java:jboss/datasources/Trainer70DS</sql:dataSourceRef>
+      </sql:binding.sql>
+    </sca:service>
+    <sca:reference name="CourseCwRestInterface" multiplicity="0..1" promote="CourseServiceBean/CourseCwRestInterface">
+      <sca:interface.java interface="gov.raleighnc.switchyard.integration.service.classdb.course.CourseCwRestInterface"/>
+      <resteasy:binding.rest name="CWIntegrationRestServices">
+        <resteasy:interfaces>gov.raleighnc.switchyard.integration.service.classdb.course.CourseCwRestInterfaceJaxRs</resteasy:interfaces>
+        <resteasy:address>http://localhost:8080/switchyard-cw/</resteasy:address>
+      </resteasy:binding.rest>
+    </sca:reference>
+    <sca:reference name="CourseCwJpaInterface" multiplicity="0..1" promote="CourseServiceBean/CourseCwJpaInterface">
+      <sca:interface.java interface="gov.raleighnc.switchyard.integration.service.classdb.course.CourseCwJpaInterface"/>
+      <jpa:binding.jpa name="CourseJpaCityworks">
+        <jpa:entityClassName>gov.raleighnc.switchyard.integration.domain.classdb.booking.BookingWorkOrder</jpa:entityClassName>
+        <jpa:persistenceUnit>CourseJpaCityworks</jpa:persistenceUnit>
+        <jpa:transactionManager>#jtaTransactionManager</jpa:transactionManager>
+        <jpa:produce/>
+      </jpa:binding.jpa>
+    </sca:reference>
+    <sca:reference name="CourseCwSqlInterface" multiplicity="0..1" promote="CourseServiceBean/CourseCwSqlInterface">
+      <sca:interface.java interface="gov.raleighnc.switchyard.integration.service.classdb.course.CourseCwSqlInterface"/>
+      <sql:binding.sql name="CheckBookingWOCreation">
+        <sql:query>select * from BOOKING_WO_MAPPING where BOOKINGID = #</sql:query>
+        <sql:dataSourceRef>java:jboss/datasources/CityworksDS</sql:dataSourceRef>
+      </sql:binding.sql>
+    </sca:reference>
+  </sca:composite>
+</sy:switchyard>
